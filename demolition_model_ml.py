@@ -533,7 +533,10 @@ def extract_features(conn):
         SELECT pin14, EXTRACT(YEAR FROM MAX(daterecorded))::int AS sale_year
         FROM view_ptax_cook_lake_idor
         WHERE daterecorded <= '{SNAPSHOT_YEAR}-12-31'
-          AND (sale_filter_ptax_flag IS NOT TRUE)
+          AND price_fullconsideration > 10000
+          AND line5_instrumenttype NOT IN ('Quit Claim Deed', 'Executor Deed', 'Beneficial interest')
+          AND line5_instrumenttype IS NOT NULL
+          AND sale_filter_ptax_flag IS FALSE
         GROUP BY pin14
         """,
         "recent sales",
