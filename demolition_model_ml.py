@@ -97,9 +97,14 @@ NUMERIC_FEATURES = [
     "years_since_renovation",
     "renovation_investment",
     "nearby_demo_count_2yr",
+    "nearby_new_construction_count",
     "is_llc_owner",
     "is_vacant",
+    "in_tax_sale",
     "sale_year",
+    "sale_price",
+    "sale_price_to_assessed_ratio",
+    "lot_size_sf",
 ]
 
 
@@ -257,7 +262,8 @@ def extract_features(conn):
         df_av["land_val"].astype(float) / df_av["total_val"].astype(float),
         np.nan,
     )
-    df_av = df_av[["pin14", "land_ratio"]]
+    df_av["total_val"] = pd.to_numeric(df_av["total_val"], errors="coerce")
+    df_av = df_av[["pin14", "land_ratio", "total_val"]]
 
     # ------------------------------------------------------------------
     # 1c. Building characteristics (year built, building sqft, land sqft)
@@ -530,14 +536,17 @@ def extract_features(conn):
     df_sales = run_query(
         conn,
         f"""
-        SELECT pin14, EXTRACT(YEAR FROM MAX(daterecorded))::int AS sale_year
+        SELECT DISTINCT ON (pin14)
+            pin14,
+            EXTRACT(YEAR FROM daterecorded)::int AS sale_year,
+            price_fullconsideration AS sale_price
         FROM view_ptax_cook_lake_idor
         WHERE daterecorded <= '{SNAPSHOT_YEAR}-12-31'
           AND price_fullconsideration > 10000
           AND line5_instrumenttype NOT IN ('Quit Claim Deed', 'Executor Deed', 'Beneficial interest')
           AND line5_instrumenttype IS NOT NULL
           AND sale_filter_ptax_flag IS FALSE
-        GROUP BY pin14
+        ORDER BY pin14, daterecorded DESC
         """,
         "recent sales",
     )
@@ -677,6 +686,54 @@ def extract_features(conn):
         )
 
     # ------------------------------------------------------------------
+    # 1l. Nearby new construction count (spatial)
+    # ------------------------------------------------------------------
+    print("\n[12/12] Nearby new construction (spatial, may be slow)")
+    try:
+        df_nearby_new = run_query(
+            conn,
+            f"""
+            WITH new_permits AS (
+                SELECT DISTINCT permit_, geom_3435
+                FROM permits
+                WHERE _permit_type = 'PERMIT - NEW CONSTRUCTION'
+                  AND issue_date BETWEEN '{SNAPSHOT_YEAR - 1}-01-01' AND '{SNAPSHOT_YEAR}-12-31'
+                  AND geom_3435 IS NOT NULL
+            )
+            SELECT
+                pt.pin14,
+                COUNT(DISTINCT np.permit_) AS nearby_new_construction_count
+            FROM propertytaxes_combined pt
+            JOIN new_permits np
+                ON ST_DWithin(pt.geom_2025, np.geom_3435, 1640)
+            WHERE pt.city = 'CHICAGO'
+              AND pt.deleted_at IS NULL
+              AND pt.geom_2025 IS NOT NULL
+            GROUP BY pt.pin14
+            """,
+            "nearby new construction (500m radius)",
+        )
+    except Exception as e:
+        print(f"\n  WARNING: Spatial nearby new construction query failed ({e}). Skipping.")
+        df_nearby_new = pd.DataFrame(columns=["pin14", "nearby_new_construction_count"])
+
+    # ------------------------------------------------------------------
+    # 1m. Tax sale presence (2024 annual tax sale)
+    # ------------------------------------------------------------------
+    print("\n[13/13] Tax sale")
+    # TODO: confirm the status column name and which values indicate an
+    # unredeemed/still-outstanding sale before relying on this feature.
+    df_tax_sale = run_query(
+        conn,
+        """
+        SELECT DISTINCT pin14, 1 AS in_tax_sale
+        FROM d_annual_tax_sale_2024_results
+        WHERE pin14 IS NOT NULL
+        """,
+        "tax sale",
+    )
+
+    # ------------------------------------------------------------------
     # Merge everything together
     # ------------------------------------------------------------------
     print("\nMerging all features ...")
@@ -694,6 +751,8 @@ def extract_features(conn):
         df_zoning,
         df_community,
         df_nearby,
+        df_nearby_new,
+        df_tax_sale,
     ]:
         df = df.merge(feat_df, on="pin14", how="left")
 
@@ -704,7 +763,9 @@ def extract_features(conn):
         "has_open_violation",
         "renovation_investment",
         "nearby_demo_count_2yr",
+        "nearby_new_construction_count",
         "is_vacant",
+        "in_tax_sale",
     ]
     for col in fill_zero_cols:
         if col in df.columns:
@@ -714,14 +775,28 @@ def extract_features(conn):
     if "years_since_renovation" in df.columns:
         df["years_since_renovation"] = df["years_since_renovation"].fillna(99.0)
 
+    # lot_size_sf: direct pass-through of char_land_sf
+    df["char_land_sf"] = pd.to_numeric(df.get("char_land_sf"), errors="coerce")
+    df["lot_size_sf"] = df["char_land_sf"]
+
     # Compute underbuilt_ratio: actual building FAR / max zoning FAR
     df["char_bldg_sf"] = pd.to_numeric(df.get("char_bldg_sf"), errors="coerce")
-    df["char_land_sf"] = pd.to_numeric(df.get("char_land_sf"), errors="coerce")
     df["max_far"] = pd.to_numeric(df.get("max_far"), errors="coerce")
 
     df["underbuilt_ratio"] = np.where(
         (df["max_far"] > 0) & (df["char_land_sf"] > 0),
         (df["char_bldg_sf"] / df["char_land_sf"]) / df["max_far"],
+        np.nan,
+    )
+
+    # sale_price_to_assessed_ratio: sale price relative to total assessed value.
+    # Note: for class 2 (residential) properties, Cook County assesses at ~10% of
+    # estimated market value, so this ratio will be ~10x higher than for classes
+    # assessed closer to market. The model learns this relationship via property_class.
+    df["sale_price"] = pd.to_numeric(df.get("sale_price"), errors="coerce")
+    df["sale_price_to_assessed_ratio"] = np.where(
+        df["total_val"].fillna(0) > 0,
+        df["sale_price"] / df["total_val"],
         np.nan,
     )
 
@@ -969,14 +1044,19 @@ def export_top_500(df):
         "underbuilt_ratio",
         "violation_count_5yr",
         "is_vacant",
+        "in_tax_sale",
         "community_area",
         "zone_class",
         "property_class",
         "is_llc_owner",
         "nearby_demo_count_2yr",
+        "nearby_new_construction_count",
         "years_since_renovation",
         "renovation_investment",
+        "lot_size_sf",
         "sale_year",
+        "sale_price",
+        "sale_price_to_assessed_ratio",
     ]
     # Only include columns that exist
     export_cols = [c for c in export_cols if c in active.columns]
@@ -1028,7 +1108,12 @@ def export_validation(df):
         "nearby_demo_count_2yr",
         "is_llc_owner",
         "is_vacant",
+        "in_tax_sale",
         "sale_year",
+        "sale_price",
+        "sale_price_to_assessed_ratio",
+        "lot_size_sf",
+        "nearby_new_construction_count",
         "community_area",
         "zone_class",
         "property_class",
