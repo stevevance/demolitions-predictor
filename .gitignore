@@ -3,5 +3,6 @@ __pycache__/
 *.pyc
 .env
 output/*.csv
+!output/demolition_model_ml_importance.csv
 output/*.txt
 .DS_Store
