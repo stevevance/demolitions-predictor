@@ -721,14 +721,13 @@ def extract_features(conn):
     # 1m. Tax sale presence (2024 annual tax sale)
     # ------------------------------------------------------------------
     print("\n[13/13] Tax sale")
-    # TODO: confirm the status column name and which values indicate an
-    # unredeemed/still-outstanding sale before relying on this feature.
     df_tax_sale = run_query(
         conn,
         """
         SELECT DISTINCT pin14, 1 AS in_tax_sale
         FROM d_annual_tax_sale_2024_results
         WHERE pin14 IS NOT NULL
+          AND status = 'Forfeited'
         """,
         "tax sale",
     )
