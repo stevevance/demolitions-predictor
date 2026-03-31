@@ -99,7 +99,7 @@ NUMERIC_FEATURES = [
     "nearby_demo_count_2yr",
     "is_llc_owner",
     "is_vacant",
-    "recent_sale",
+    "sale_year",
 ]
 
 
@@ -524,16 +524,17 @@ def extract_features(conn):
     df_reno = df_reno[["pin14", "years_since_renovation", "renovation_investment"]]
 
     # ------------------------------------------------------------------
-    # 1g. Recent sales (arm's-length, prior 2 years)
+    # 1g. Most recent arm's-length sale year
     # ------------------------------------------------------------------
     print("\n[7/11] Recent sales")
     df_sales = run_query(
         conn,
         f"""
-        SELECT DISTINCT pin14, 1 AS recent_sale
+        SELECT pin14, EXTRACT(YEAR FROM MAX(daterecorded))::int AS sale_year
         FROM view_ptax_cook_lake_idor
-        WHERE daterecorded BETWEEN '{SNAPSHOT_YEAR - 1}-01-01' AND '{SNAPSHOT_YEAR}-12-31'
+        WHERE daterecorded <= '{SNAPSHOT_YEAR}-12-31'
           AND (sale_filter_ptax_flag IS NOT TRUE)
+        GROUP BY pin14
         """,
         "recent sales",
     )
@@ -701,7 +702,6 @@ def extract_features(conn):
         "renovation_investment",
         "nearby_demo_count_2yr",
         "is_vacant",
-        "recent_sale",
     ]
     for col in fill_zero_cols:
         if col in df.columns:
@@ -757,6 +757,20 @@ def train_and_evaluate(df, skip_shap=False):
         df = pd.concat([df, community_dummies], axis=1)
         community_features = community_dummies.columns.tolist()
         features += community_features
+
+    # Add property_class as one-hot encoded dummies (top 20 by frequency).
+    if "property_class" in df.columns:
+        top_classes = (
+            df["property_class"].value_counts().head(20).index.tolist()
+        )
+        df["property_class_clean"] = df["property_class"].where(
+            df["property_class"].isin(top_classes), other="OTHER"
+        )
+        class_dummies = pd.get_dummies(
+            df["property_class_clean"], prefix="pc", dtype=float
+        )
+        df = pd.concat([df, class_dummies], axis=1)
+        features += class_dummies.columns.tolist()
 
     y = df["demolished_within_3yr"].values.astype(int)
     X = df[features].copy()
@@ -954,10 +968,12 @@ def export_top_500(df):
         "is_vacant",
         "community_area",
         "zone_class",
+        "property_class",
         "is_llc_owner",
         "nearby_demo_count_2yr",
         "years_since_renovation",
         "renovation_investment",
+        "sale_year",
     ]
     # Only include columns that exist
     export_cols = [c for c in export_cols if c in active.columns]
@@ -1009,9 +1025,10 @@ def export_validation(df):
         "nearby_demo_count_2yr",
         "is_llc_owner",
         "is_vacant",
-        "recent_sale",
+        "sale_year",
         "community_area",
         "zone_class",
+        "property_class",
     ]
     val_cols = [c for c in val_cols if c in df.columns]
 
