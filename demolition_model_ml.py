@@ -30,6 +30,7 @@ Output files (written to cli/output/):
 
 import argparse
 import csv
+from datetime import datetime
 import os
 import sys
 import time
@@ -808,7 +809,7 @@ def extract_features(conn):
 # ---------------------------------------------------------------------------
 
 
-def train_and_evaluate(df, skip_shap=False):
+def train_and_evaluate(df, skip_shap=False, suffix=""):
     """Train the XGBoost model and evaluate on the full dataset."""
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -901,7 +902,7 @@ def train_and_evaluate(df, skip_shap=False):
     # score per prediction. The mean absolute SHAP value across all parcels
     # is the best global importance metric — more informative than XGBoost's
     # built-in gain/cover because it accounts for feature interactions.
-    importance_path = OUTPUT_DIR / "demolition_model_ml_importance.csv"
+    importance_path = OUTPUT_DIR / f"demolition_model_ml_importance{suffix}.csv"
     if skip_shap and importance_path.exists():
         # Load previously computed importances instead of recomputing
         print(f"\nSkipping SHAP (--skip-shap set, loading {importance_path.name}) ...")
@@ -990,7 +991,7 @@ def train_and_evaluate(df, skip_shap=False):
     print(f"    Actual YES      {cm[1, 0]:>10,}   {cm[1, 1]:>10,}")
 
     # Save metrics to file
-    metrics_path = OUTPUT_DIR / "demolition_model_ml_metrics.txt"
+    metrics_path = OUTPUT_DIR / f"demolition_model_ml_metrics{suffix}.txt"
     with open(metrics_path, "w") as f:
         f.write("Chicago Demolition Probability Model (XGBoost) — Evaluation Metrics\n")
         f.write(f"Snapshot year: {SNAPSHOT_YEAR}\n")
@@ -1021,7 +1022,7 @@ def train_and_evaluate(df, skip_shap=False):
 # ---------------------------------------------------------------------------
 
 
-def export_top_500(df):
+def export_top_500(df, suffix=""):
     """Export the top 500 highest-risk parcels that haven't been demolished."""
 
     print("\n" + "=" * 70)
@@ -1061,7 +1062,7 @@ def export_top_500(df):
     export_cols = [c for c in export_cols if c in active.columns]
 
     top500 = active.head(500)[export_cols]
-    top500_path = OUTPUT_DIR / "demolition_model_ml_top500.csv"
+    top500_path = OUTPUT_DIR / f"demolition_model_ml_top500{suffix}.csv"
     write_csv(top500, top500_path)
     print(f"  Saved {len(top500)} parcels to {top500_path}")
 
@@ -1084,7 +1085,7 @@ def export_top_500(df):
 # ---------------------------------------------------------------------------
 
 
-def export_validation(df):
+def export_validation(df, suffix=""):
     """Export validation samples: known demolitions and high-scoring false positives."""
 
     print("\n" + "=" * 70)
@@ -1150,7 +1151,7 @@ def export_validation(df):
             fp_sample[val_cols].assign(sample_type="false_positive"),
         ]
     )
-    val_path = OUTPUT_DIR / "demolition_model_ml_validation.csv"
+    val_path = OUTPUT_DIR / f"demolition_model_ml_validation{suffix}.csv"
     write_csv(validation, val_path)
     print(f"  Saved {len(validation)} validation samples to {val_path}")
 
@@ -1201,7 +1202,14 @@ def main():
         action="store_true",
         help="Skip recomputing SHAP values and load the existing importance CSV instead",
     )
+    parser.add_argument(
+        "--timestamp",
+        action="store_true",
+        help="Append a timestamp suffix (e.g. _20260331_143022) to all output filenames",
+    )
     args = parser.parse_args()
+
+    suffix = datetime.now().strftime("_%Y%m%d_%H%M%S") if args.timestamp else ""
 
     print("=" * 70)
     print("CHICAGO DEMOLITION PROBABILITY MODEL (XGBoost)")
@@ -1221,15 +1229,15 @@ def main():
 
         # Steps 2-5: Train model and evaluate
         print("\n--- STEPS 2-5: TRAINING & EVALUATION ---")
-        df, model, imputer = train_and_evaluate(df, skip_shap=args.skip_shap)
+        df, model, imputer = train_and_evaluate(df, skip_shap=args.skip_shap, suffix=suffix)
 
         # Step 6: Export top 500
         print("\n--- STEP 6: EXPORT TOP 500 ---")
-        export_top_500(df)
+        export_top_500(df, suffix=suffix)
 
         # Step 7: Validation
         print("\n--- STEP 7: VALIDATION ---")
-        export_validation(df)
+        export_validation(df, suffix=suffix)
 
     finally:
         conn.close()
