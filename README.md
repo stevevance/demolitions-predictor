@@ -39,12 +39,12 @@ Full SHAP values are in [`output/demolition_model_ml_importance.csv`](output/dem
 
 | File | Description |
 |------|-------------|
-| `output/demolition_model_ml_importance.csv` | SHAP feature importances (tracked in repo) |
-| `output/demolition_model_ml_top500.csv` | Top 500 highest-risk active parcels (tracked in repo) |
-| `output/demolition_model_ml_validation.csv` | Known demolitions + false positives with scores |
+| `output/demolition_model_ml_importance.csv` | SHAP feature importances |
+| `output/demolition_model_ml_top500.csv` | Top 500 highest-risk active parcels |
+| `output/demolition_model_ml_validation.csv` | Known demolitions + high-scoring false positives with scores |
 | `output/demolition_model_ml_metrics.txt` | Full evaluation metrics |
 
-The importance CSV and top 500 list are tracked in git. The validation and metrics files are regenerated on each run.
+All four files are tracked in git.
 
 ### Top 500 highest-risk parcels
 
@@ -71,6 +71,53 @@ Columns:
 | `renovation_investment` | Dollar value of renovation permits |
 
 `nan` values mean the data was not available for that parcel; the model imputes medians internally before scoring.
+
+### Validation sample
+
+[`output/demolition_model_ml_validation.csv`](output/demolition_model_ml_validation.csv) is a diagnostic file with two groups of parcels, identified by the `sample_type` column:
+
+- **`known_demolition`** — parcels confirmed demolished in 2024–2025, used to check that the model actually scores them highly
+- **`false_positive`** — the top-scoring parcels that were *not* demolished, useful for understanding where the model is wrong
+
+The file has the same feature columns as the top 500 list, plus:
+
+| Column | Description |
+|--------|-------------|
+| `demolished_within_3yr` | 1.0 = confirmed demolished, 0.0 = not demolished |
+| `has_open_violation` | 1 if the parcel had an open building violation at snapshot time |
+| `recent_sale` | 1 if the parcel sold within the past 2 years |
+| `sample_type` | `known_demolition` or `false_positive` |
+
+This file is most useful for spotting patterns in what the model gets wrong. For example, the current false positives are heavily concentrated in Roseland — parcels with many nearby demolitions and vacant land but no actual demo permit yet.
+
+### Evaluation metrics
+
+[`output/demolition_model_ml_metrics.txt`](output/demolition_model_ml_metrics.txt) contains the full model evaluation summary. Key figures from the current run (2023 snapshot, 2024–2025 outcomes):
+
+```
+Total parcels scored:     934,032
+Total demolitions:          1,364  (base rate: 0.15%)
+
+ROC-AUC:                   0.9860
+PR-AUC:                    0.2628
+Top-decile lift:            9.76x
+Capture rate at top 5%:    93.5%  (1,275 of 1,364 demolished parcels)
+
+Median score — demolished:     0.9082
+Median score — not demolished: 0.0502
+
+Confusion matrix at p ≥ 0.15:
+  True negatives:   640,892   False positives: 291,776
+  False negatives:        0   True positives:    1,364
+```
+
+**What these mean:**
+
+- **ROC-AUC 0.986** — the model correctly ranks a random demolished parcel above a random non-demolished one 98.6% of the time
+- **PR-AUC 0.263** — given how rare demolitions are (0.15% base rate), this is a strong result; random guessing would score 0.0015
+- **Top-decile lift 9.76x** — the top 10% of predictions contain demolitions at nearly 10x the rate you'd expect by chance
+- **Capture rate 93.5%** — 93.5% of all actual demolitions fall in the top 5% of scores
+- **Zero false negatives at p ≥ 0.15** — every confirmed demolition scores above 0.15; the model misses none at this threshold (at the cost of ~292K false positives)
 
 ## Setup
 

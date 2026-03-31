@@ -5,5 +5,7 @@ __pycache__/
 output/*.csv
 !output/demolition_model_ml_importance.csv
 !output/demolition_model_ml_top500.csv
+!output/demolition_model_ml_validation.csv
 output/*.txt
+!output/demolition_model_ml_metrics.txt
 .DS_Store

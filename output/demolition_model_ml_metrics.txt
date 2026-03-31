@@ -1,0 +1,31 @@
+Chicago Demolition Probability Model (XGBoost) — Evaluation Metrics
+Snapshot year: 2023
+Outcome period: 2024-01-01 to 2025-12-31
+Total parcels: 934,032
+Total demolitions: 1,364
+Base rate: 0.001460
+scale_pos_weight: 683.8
+
+ROC-AUC: 0.9860
+PR-AUC (Average Precision): 0.2628
+Top-decile lift: 9.76x
+Capture rate at top 5%: 0.9348 (1275/1364)
+Median score (demolished): 0.9082
+Median score (non-demolished): 0.0502
+
+Confusion matrix at p >= 0.15:
+  TN=640,892  FP=291,776
+  FN=0  TP=1,364
+
+SHAP feature importances (mean |SHAP|):
+  land_ratio                      1.062900
+  building_age                    0.764557
+  nearby_demo_count_2yr           0.497136
+  renovation_investment           0.370866
+  years_since_renovation          0.342996
+  underbuilt_ratio                0.266745
+  is_llc_owner                    0.218649
+  violation_count_5yr             0.207314
+  recent_sale                     0.087403
+  is_vacant                       0.057827
+  has_open_violation              0.051423
