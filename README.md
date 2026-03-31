@@ -40,11 +40,37 @@ Full SHAP values are in [`output/demolition_model_ml_importance.csv`](output/dem
 | File | Description |
 |------|-------------|
 | `output/demolition_model_ml_importance.csv` | SHAP feature importances (tracked in repo) |
-| `output/demolition_model_ml_top500.csv` | Top 500 highest-risk active parcels |
+| `output/demolition_model_ml_top500.csv` | Top 500 highest-risk active parcels (tracked in repo) |
 | `output/demolition_model_ml_validation.csv` | Known demolitions + false positives with scores |
 | `output/demolition_model_ml_metrics.txt` | Full evaluation metrics |
 
-Only the importance CSV is tracked in git. The others are large and regenerated on each run.
+The importance CSV and top 500 list are tracked in git. The validation and metrics files are regenerated on each run.
+
+### Top 500 highest-risk parcels
+
+[`output/demolition_model_ml_top500.csv`](output/demolition_model_ml_top500.csv) lists the 500 active Chicago parcels with the highest predicted demolition probability as of the 2023 snapshot. These are properties the model believes are most likely to be demolished by end of 2026.
+
+Columns:
+
+| Column | Description |
+|--------|-------------|
+| `pin14` | 14-digit Cook County PIN (unique parcel identifier) |
+| `pin10` | 10-digit PIN (assessor-level, groups condo units) |
+| `address` | Street address |
+| `demolition_probability` | Model score from 0–1 (higher = more likely to be demolished) |
+| `land_ratio` | Land value ÷ total assessed value (high = building is worth little relative to land) |
+| `building_age` | Age of structure in years |
+| `underbuilt_ratio` | Actual FAR ÷ max allowed FAR under current zoning (low = site is underbuilt) |
+| `violation_count_5yr` | Building code violations filed in the past 5 years |
+| `is_vacant` | 1 if parcel is classified as vacant |
+| `community_area` | Chicago community area name |
+| `zone_class` | Current zoning classification |
+| `is_llc_owner` | 1 if the owner name contains "LLC" |
+| `nearby_demo_count_2yr` | Number of demolitions within ~500 ft in the past 2 years |
+| `years_since_renovation` | Years since last renovation permit (99 = no permit on record) |
+| `renovation_investment` | Dollar value of renovation permits |
+
+`nan` values mean the data was not available for that parcel; the model imputes medians internally before scoring.
 
 ## Setup
 

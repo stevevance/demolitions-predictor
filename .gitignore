@@ -4,5 +4,6 @@ __pycache__/
 .env
 output/*.csv
 !output/demolition_model_ml_importance.csv
+!output/demolition_model_ml_top500.csv
 output/*.txt
 .DS_Store
