@@ -91,6 +91,8 @@ OUTPUT_DIR = SCRIPT_DIR / "output"
 # Numeric features used in the model
 NUMERIC_FEATURES = [
     "land_ratio",
+    "land_val",
+    "building_val",
     "building_age",
     "underbuilt_ratio",
     "violation_count_5yr",
@@ -263,8 +265,10 @@ def extract_features(conn):
         df_av["land_val"].astype(float) / df_av["total_val"].astype(float),
         np.nan,
     )
+    df_av["land_val"] = pd.to_numeric(df_av["land_val"], errors="coerce")
     df_av["total_val"] = pd.to_numeric(df_av["total_val"], errors="coerce")
-    df_av = df_av[["pin14", "land_ratio", "total_val"]]
+    df_av["building_val"] = df_av["total_val"] - df_av["land_val"]
+    df_av = df_av[["pin14", "land_ratio", "land_val", "building_val", "total_val"]]
 
     # ------------------------------------------------------------------
     # 1c. Building characteristics (year built, building sqft, land sqft)
@@ -1040,6 +1044,8 @@ def export_top_500(df, suffix=""):
         "address",
         "demolition_probability",
         "land_ratio",
+        "land_val",
+        "building_val",
         "building_age",
         "underbuilt_ratio",
         "violation_count_5yr",
@@ -1099,6 +1105,8 @@ def export_validation(df, suffix=""):
         "demolished_within_3yr",
         "demolition_probability",
         "land_ratio",
+        "land_val",
+        "building_val",
         "building_age",
         "underbuilt_ratio",
         "violation_count_5yr",
