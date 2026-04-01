@@ -251,9 +251,9 @@ The single strongest predictor is `land_ratio` — land value as a fraction of t
 
 | | All class 2 residential | Top 500 high-risk parcels |
 |--|------------------------|--------------------------|
-| 25th percentile | 0.12 | — |
+| 25th percentile | 0.12 | 0.47 |
 | **Median** | **0.22** | **0.55** |
-| 75th percentile | 0.33 | — |
+| 75th percentile | 0.33 | 0.60 |
 
 The typical Chicago residential parcel has 22 cents of every assessed dollar in land. The high-risk parcels have 55 cents — roughly 2.5x the citywide median. A ratio above ~0.35 puts a property in the top quartile citywide; above 0.50 it's well into outlier territory where demolition economics start making sense. At 0.75+, the building is essentially a liability on the land.
 
