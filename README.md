@@ -29,11 +29,20 @@ Ranked by mean absolute SHAP value (how much each feature moves the prediction):
 | `renovation_investment` | 0.371 | Dollar value of recent renovation permits |
 | `years_since_renovation` | 0.343 | Years since last renovation permit (99 = never) |
 | `underbuilt_ratio` | 0.267 | Actual FAR / max allowed FAR under zoning |
-| `is_llc_owner` | 0.219 | Owner name contains "LLC" |
+| `is_llc_owner` | 0.219 | Owner name contains "LLC" (LLC, Inc, Corp, Trust) |
 | `violation_count_5yr` | 0.207 | Building code violations in past 5 years |
+| `nearby_new_construction_count` | — | New construction permits within ~500 ft in past 2 years |
+| `lot_size_sf` | — | Lot size in square feet |
+| `sale_year` | — | Year of most recent arm's-length sale |
+| `sale_price` | — | Price of most recent arm's-length sale |
+| `sale_price_to_assessed_ratio` | — | Sale price ÷ total assessed value (note: class 2 residential is assessed at ~10% of market value) |
+| `in_tax_sale` | — | 1 if parcel appeared as forfeited in the 2024 annual tax sale |
+| `has_open_violation` | — | 1 if parcel had an open building violation at snapshot time |
+| `is_vacant` | — | 1 if parcel is on the Chicago vacant building registry |
+| `property_class` dummies | varies | Top 20 Cook County property classes as one-hot features |
 | Community area dummies | varies | Top 30 community areas as one-hot features |
 
-Full SHAP values are in [`output/demolition_model_ml_importance.csv`](output/demolition_model_ml_importance.csv).
+SHAP values are from the initial model run. The features marked — will be ranked after the next run incorporating the new variables. Full SHAP values are in [`output/demolition_model_ml_importance.csv`](output/demolition_model_ml_importance.csv).
 
 ## Output files
 
@@ -62,13 +71,20 @@ Columns:
 | `building_age` | Age of structure in years |
 | `underbuilt_ratio` | Actual FAR ÷ max allowed FAR under current zoning (low = site is underbuilt) |
 | `violation_count_5yr` | Building code violations filed in the past 5 years |
-| `is_vacant` | 1 if parcel is classified as vacant |
+| `is_vacant` | 1 if parcel is on the Chicago vacant building registry |
+| `in_tax_sale` | 1 if parcel appeared as forfeited in the 2024 annual tax sale |
 | `community_area` | Chicago community area name |
 | `zone_class` | Current zoning classification |
-| `is_llc_owner` | 1 if the owner name contains "LLC" |
-| `nearby_demo_count_2yr` | Number of demolitions within ~500 ft in the past 2 years |
+| `property_class` | Cook County property class code |
+| `is_llc_owner` | 1 if the owner name contains LLC, Inc, Corp, or Trust |
+| `nearby_demo_count_2yr` | Demolitions within ~500 ft in the past 2 years |
+| `nearby_new_construction_count` | New construction permits within ~500 ft in the past 2 years |
 | `years_since_renovation` | Years since last renovation permit (99 = no permit on record) |
 | `renovation_investment` | Dollar value of renovation permits |
+| `lot_size_sf` | Lot size in square feet |
+| `sale_year` | Year of most recent arm's-length sale |
+| `sale_price` | Price of most recent arm's-length sale |
+| `sale_price_to_assessed_ratio` | Sale price ÷ total assessed value |
 
 `nan` values mean the data was not available for that parcel; the model imputes medians internally before scoring.
 
@@ -85,7 +101,11 @@ The file has the same feature columns as the top 500 list, plus:
 |--------|-------------|
 | `demolished_within_3yr` | 1.0 = confirmed demolished, 0.0 = not demolished |
 | `has_open_violation` | 1 if the parcel had an open building violation at snapshot time |
-| `recent_sale` | 1 if the parcel sold within the past 2 years |
+| `sale_year` | Year of most recent arm's-length sale |
+| `sale_price` | Price of most recent arm's-length sale |
+| `sale_price_to_assessed_ratio` | Sale price ÷ total assessed value |
+| `lot_size_sf` | Lot size in square feet |
+| `nearby_new_construction_count` | New construction permits within ~500 ft in the past 2 years |
 | `sample_type` | `known_demolition` or `false_positive` |
 
 This file is most useful for spotting patterns in what the model gets wrong. For example, the current false positives are heavily concentrated in Roseland — parcels with many nearby demolitions and vacant land but no actual demo permit yet.
@@ -153,12 +173,21 @@ SHAP computation takes about a minute. To skip it on subsequent runs and reuse t
 python3 demolition_model_ml.py --skip-shap
 ```
 
+To preserve existing output files by appending a timestamp to all filenames:
+
+```bash
+python3 demolition_model_ml.py --timestamp
+```
+
 ## Data sources
 
 - **Cook County Assessor** — assessed values and building characteristics (2023 snapshot)
-- **Chicago building permits** — renovation history and investment amounts
+- **Cook County IDOR sales** — arm's-length sale year, price, and price-to-assessed ratio
+- **Cook County annual tax sale** — forfeited properties from 2024 tax sale
+- **Chicago building permits** — renovation history, investment amounts, and nearby new construction
 - **Chicago building violations** — code violations over 5-year window
-- **Chicago demolition permits** — outcome variable (2024–2025 demolitions)
+- **Chicago demolition permits** — outcome variable (2024–2025 demolitions) and nearby demolition count
+- **Chicago vacant building registry** — current vacancy status
 - **Chicago zoning** — current zoning class and max FAR
 
 ## Background
