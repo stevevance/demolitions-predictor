@@ -209,7 +209,41 @@ The model was trained and validated on a 2023 snapshot against actual demolition
 | 30 E 110th Pl | Roseland | B3-2 | 99.5% |
 | 1420 S Pulaski Rd | North Lawndale | C1-2 | 99.5% |
 
-All ten are vacant properties with multiple nearby demolitions. Nine of the ten are in Roseland, which — as noted below — is also where the model's false positives cluster. The first non-Roseland entry outside the top 10 is 1802 N Cleveland Ave in Lincoln Park (99.3%), a 139-year-old LLC-owned building with 21 nearby demolitions.
+All ten are vacant properties with multiple nearby demolitions. Nine of the ten are in Roseland, which — as noted below — is also where the model's false positives cluster.
+
+The three community areas with the most parcels in the top 500 are North Center (154), Lincoln Park (71), and Lake View (61). Their top 5 highest-risk parcels:
+
+**North Center**
+
+| Address | Zoning | Probability | Building Age | LLC-owned | Nearby Demos |
+|---------|--------|-------------|-------------|-----------|-------------|
+| 2124 W Roscoe St | B1-2 | 99.3% | 114 yrs | No | 24 |
+| 3039 N Clybourn Ave | RT-4 | 99.2% | 125 yrs | Yes | 16 |
+| 3027 N Clybourn Ave | RT-4 | 99.2% | 125 yrs | Yes | 16 |
+| 3309 N Western Ave | C1-2 | 99.2% | 135 yrs | Yes | 18 |
+| 3048 N Clybourn Ave | C1-2 | 99.1% | 130 yrs | Yes | 15 |
+
+**Lincoln Park**
+
+| Address | Zoning | Probability | Building Age | LLC-owned | Nearby Demos |
+|---------|--------|-------------|-------------|-----------|-------------|
+| 1802 N Cleveland Ave | RM-5 | 99.3% | 139 yrs | Yes | 21 |
+| 2048 N Seminary Ave | RT-4 | 99.2% | 136 yrs | Yes | 19 |
+| 1827 N Clybourn Ave | B1-2 | 99.1% | 135 yrs | Yes | 24 |
+| 2624 N Racine Ave | RT-4 | 99.1% | 135 yrs | Yes | 7 |
+| 2219 N Magnolia Ave | RT-4 | 99.0% | 41 yrs | Yes | 11 |
+
+**Lake View**
+
+| Address | Zoning | Probability | Building Age | LLC-owned | Nearby Demos |
+|---------|--------|-------------|-------------|-----------|-------------|
+| 3609 N Ashland Ave | C1-2 | 99.3% | 135 yrs | Yes | 21 |
+| 1434 W Fletcher St | RS-3 | 98.8% | 127 yrs | Yes | 16 |
+| 2921 N Southport Ave | B3-2 | 98.8% | 130 yrs | Yes | 13 |
+| 3639 N Ashland Ave | C1-2 | 98.8% | 132 yrs | No | 17 |
+| 1433 W Oakdale Ave | RT-3.5 | 98.8% | 135 yrs | Yes | 11 |
+
+These are a different profile from the Roseland top 10: old buildings (most over 100 years), LLC-owned, on commercially or residentially zoned land with active nearby demolition activity — the classic North Side teardown pattern.
 
 **The model is highly accurate at finding demolitions.** It captures 93.5% of all 1,364 confirmed demolitions within the top 5% of scored parcels, and misses none at a 0.15 probability threshold. The median risk score for a demolished parcel (0.91) is 18x higher than for a non-demolished one (0.05), showing strong separation.
 
