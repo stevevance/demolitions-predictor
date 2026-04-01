@@ -190,6 +190,22 @@ python3 demolition_model_ml.py --timestamp
 - **Chicago vacant building registry** — current vacancy status
 - **Chicago zoning** — current zoning class and max FAR
 
+## What the results show
+
+The model was trained and validated on a 2023 snapshot against actual demolitions in 2024–2025. Here's what the outputs reveal.
+
+**The model is highly accurate at finding demolitions.** It captures 93.5% of all 1,364 confirmed demolitions within the top 5% of scored parcels, and misses none at a 0.15 probability threshold. The median risk score for a demolished parcel (0.91) is 18x higher than for a non-demolished one (0.05), showing strong separation.
+
+**The single strongest predictor is land value relative to total assessed value.** A high `land_ratio` means the building contributes little to the property's value — the land itself is what's worth money. This is the classic teardown signal: the structure is economically obsolete relative to what could be built in its place. Building age is the second-strongest predictor, followed by how many demolitions have already occurred nearby.
+
+**The top 500 highest-risk parcels are concentrated on the North Side.** North Center alone accounts for 154 of the 500 (31%), followed by Lincoln Park (71) and Lake View (61). These are affluent neighborhoods where older single-family and two-flat homes sit on land that has appreciated dramatically — developers pay a premium to tear them down and build new construction. More than half of the top 500 (263) are LLC-owned, and the most common zoning class is RS-3 (single-family residential, 209 parcels), followed by RT-4 (two-flat/townhouse, 95 parcels).
+
+**The validation sample confirms the model is finding real demolitions.** Of the 30 known demolished parcels in the validation set, 13 are in Lake View and 6 in North Center — consistent with where the model focuses attention. The most common zone class among actual demolitions is RM-5 (multi-family/condo), reflecting teardowns of older apartment buildings and condo associations in high-demand neighborhoods.
+
+**The model's false positives are concentrated in Roseland.** Nine of the 10 highest-scoring parcels that were *not* demolished are in Roseland on the Far South Side. These parcels score highly because the neighborhood has many nearby demolitions, vacant land, and LLC ownership — but unlike the North Side teardowns, they haven't been replaced with new construction. The model reads the same distress signals but the underlying economics (less development demand) mean demolition hasn't followed. This is the model's main known blind spot in the current run.
+
+**Community area is a meaningful signal beyond just neighborhood effects.** After the core numeric features, the strongest community area dummies are Near North Side, Loop, and Near South Side — areas where even modest structures face redevelopment pressure from commercial and high-density residential projects.
+
 ## Background
 
 This is an upgrade from an earlier logistic regression model (`demolition_model.py`). XGBoost was chosen for improved performance on this rare-event classification task (only 0.15% of parcels are demolished in any given year).
