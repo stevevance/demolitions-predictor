@@ -194,6 +194,23 @@ python3 demolition_model_ml.py --timestamp
 
 The model was trained and validated on a 2023 snapshot against actual demolitions in 2024–2025. Here's what the outputs reveal.
 
+**Top 10 highest-risk active parcels (2023 snapshot):**
+
+| Address | Community Area | Zoning | Probability |
+|---------|---------------|--------|-------------|
+| 11355 S Michigan Ave | Roseland | C1-2 | 99.8% |
+| 417 W 104th St | Roseland | RS-2 | 99.8% |
+| 123 E 111th St | Roseland | B3-2 | 99.7% |
+| 11359 S Michigan Ave | Roseland | C1-3 | 99.7% |
+| 11443 S Halsted St | Roseland | B3-1 | 99.6% |
+| 11350 S Michigan Ave | Roseland | B3-2 | 99.6% |
+| 36 E 110th Pl | Roseland | B3-2 | 99.6% |
+| 525 W 103rd St | Roseland | B3-1 | 99.6% |
+| 30 E 110th Pl | Roseland | B3-2 | 99.5% |
+| 1420 S Pulaski Rd | North Lawndale | C1-2 | 99.5% |
+
+All ten are vacant properties with multiple nearby demolitions. Nine of the ten are in Roseland, which — as noted below — is also where the model's false positives cluster. The first non-Roseland entry outside the top 10 is 1802 N Cleveland Ave in Lincoln Park (99.3%), a 139-year-old LLC-owned building with 21 nearby demolitions.
+
 **The model is highly accurate at finding demolitions.** It captures 93.5% of all 1,364 confirmed demolitions within the top 5% of scored parcels, and misses none at a 0.15 probability threshold. The median risk score for a demolished parcel (0.91) is 18x higher than for a non-demolished one (0.05), showing strong separation.
 
 **The single strongest predictor is land value relative to total assessed value.** A high `land_ratio` means the building contributes little to the property's value — the land itself is what's worth money. This is the classic teardown signal: the structure is economically obsolete relative to what could be built in its place. Building age is the second-strongest predictor, followed by how many demolitions have already occurred nearby.
