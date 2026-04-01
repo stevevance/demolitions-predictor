@@ -48,6 +48,7 @@ from sklearn.metrics import (
     confusion_matrix,
     roc_auc_score,
 )
+from sklearn.model_selection import RandomizedSearchCV, StratifiedKFold
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -813,7 +814,7 @@ def extract_features(conn):
 # ---------------------------------------------------------------------------
 
 
-def train_and_evaluate(df, skip_shap=False, suffix=""):
+def train_and_evaluate(df, skip_shap=False, suffix="", tune=False):
     """Train the XGBoost model and evaluate on the full dataset."""
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -879,6 +880,64 @@ def train_and_evaluate(df, skip_shap=False, suffix=""):
     print(f"  scale_pos_weight: {scale_pos_weight:.1f}")
 
     # ------------------------------------------------------------------
+    # Hyperparameter tuning (optional, --tune flag)
+    # ------------------------------------------------------------------
+    # Strategy: subsample all positives + 10x random negatives for the search,
+    # then train the final model on the full dataset with the best params.
+    # This keeps search fast (~14K rows vs 934K) while preserving the signal
+    # from rare positive examples.
+    best_params = {}
+    if tune:
+        print("\n" + "=" * 70)
+        print("HYPERPARAMETER TUNING (subsample: all positives + 10x negatives)")
+        print("=" * 70)
+
+        pos_idx = np.where(y == 1)[0]
+        neg_idx = np.where(y == 0)[0]
+        neg_sample_idx = np.random.RandomState(RANDOM_SEED).choice(
+            neg_idx, size=len(pos_idx) * 10, replace=False
+        )
+        tune_idx = np.concatenate([pos_idx, neg_sample_idx])
+        X_tune = X_imputed.iloc[tune_idx]
+        y_tune = y[tune_idx]
+
+        print(f"  Tuning sample: {len(pos_idx):,} positives + {len(neg_sample_idx):,} negatives = {len(tune_idx):,} rows")
+
+        param_dist = {
+            "max_depth":        [3, 4, 5, 6, 7, 8],
+            "learning_rate":    [0.01, 0.02, 0.05, 0.1, 0.2],
+            "n_estimators":     [200, 300, 500, 750, 1000],
+            "subsample":        [0.6, 0.7, 0.8, 0.9, 1.0],
+            "colsample_bytree": [0.6, 0.7, 0.8, 0.9, 1.0],
+            "min_child_weight": [1, 3, 5, 10, 20],
+        }
+
+        base_model = xgb.XGBClassifier(
+            scale_pos_weight=scale_pos_weight,
+            eval_metric="aucpr",
+            random_state=RANDOM_SEED,
+            n_jobs=-1,
+            verbosity=0,
+        )
+
+        search = RandomizedSearchCV(
+            base_model,
+            param_distributions=param_dist,
+            n_iter=20,
+            scoring="average_precision",
+            cv=StratifiedKFold(n_splits=3, shuffle=True, random_state=RANDOM_SEED),
+            random_state=RANDOM_SEED,
+            n_jobs=-1,
+            verbose=1,
+        )
+        t0 = time.time()
+        search.fit(X_tune, y_tune)
+        print(f"  Search done in {time.time() - t0:.1f}s")
+        best_params = search.best_params_
+        print(f"  Best PR-AUC (cv): {search.best_score_:.4f}")
+        print(f"  Best params: {best_params}")
+
+    # ------------------------------------------------------------------
     # Train XGBoost model
     # ------------------------------------------------------------------
     print("\n" + "=" * 70)
@@ -886,16 +945,17 @@ def train_and_evaluate(df, skip_shap=False, suffix=""):
     print("=" * 70)
 
     model = xgb.XGBClassifier(
-        n_estimators=500,         # number of boosting rounds
-        max_depth=6,              # maximum tree depth; controls overfitting
-        learning_rate=0.05,       # step shrinkage; lower = more conservative
-        subsample=0.8,            # fraction of rows sampled per tree
-        colsample_bytree=0.8,     # fraction of features sampled per tree
-        scale_pos_weight=scale_pos_weight,  # handles severe class imbalance
-        eval_metric="aucpr",      # optimize for PR-AUC, best metric for rare events
+        n_estimators=     best_params.get("n_estimators",     500),
+        max_depth=        best_params.get("max_depth",        6),
+        learning_rate=    best_params.get("learning_rate",    0.05),
+        subsample=        best_params.get("subsample",        0.8),
+        colsample_bytree= best_params.get("colsample_bytree", 0.8),
+        min_child_weight= best_params.get("min_child_weight", 1),
+        scale_pos_weight=scale_pos_weight,
+        eval_metric="aucpr",
         random_state=RANDOM_SEED,
-        n_jobs=-1,                # use all available CPU cores
-        verbosity=0,              # suppress XGBoost's own progress output
+        n_jobs=-1,
+        verbosity=0,
     )
     model.fit(X_imputed, y)
 
@@ -1215,6 +1275,11 @@ def main():
         action="store_true",
         help="Append a timestamp suffix (e.g. _20260331_143022) to all output filenames",
     )
+    parser.add_argument(
+        "--tune",
+        action="store_true",
+        help="Run RandomizedSearchCV hyperparameter tuning before training (uses all positives + 10x negatives subsample)",
+    )
     args = parser.parse_args()
 
     suffix = datetime.now().strftime("_%Y%m%d_%H%M%S") if args.timestamp else ""
@@ -1237,7 +1302,7 @@ def main():
 
         # Steps 2-5: Train model and evaluate
         print("\n--- STEPS 2-5: TRAINING & EVALUATION ---")
-        df, model, imputer = train_and_evaluate(df, skip_shap=args.skip_shap, suffix=suffix)
+        df, model, imputer = train_and_evaluate(df, skip_shap=args.skip_shap, suffix=suffix, tune=args.tune)
 
         # Step 6: Export top 500
         print("\n--- STEP 6: EXPORT TOP 500 ---")
