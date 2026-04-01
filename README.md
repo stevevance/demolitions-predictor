@@ -21,8 +21,8 @@ At a 0.15 probability threshold, the model captures 100% of known demolitions (1
 
 Ranked by mean absolute SHAP value (how much each feature moves the prediction):
 
-| Feature | Mean |SHAP| | Description |
-|---------|-------------|-------------|
+| Feature | Mean Abs SHAP | Description |
+|---------|--------------|-------------|
 | `land_ratio` | 1.063 | Land value as fraction of total assessed value |
 | `building_age` | 0.765 | Age of structure in years |
 | `nearby_demo_count_2yr` | 0.497 | Demolitions within ~500 ft in past 2 years |
