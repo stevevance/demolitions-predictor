@@ -1,0 +1,39 @@
+Land Ratio Baseline — Class 2 (Residential) Properties in Chicago
+Snapshot year: 2023
+==================================================================
+
+Query
+-----
+SELECT
+    MIN(land_ratio) AS min,
+    PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY land_ratio) AS p25,
+    PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY land_ratio) AS median,
+    PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY land_ratio) AS p75,
+    MAX(land_ratio) AS max,
+    COUNT(*) AS parcel_count
+FROM (
+    SELECT
+        pt.pin14,
+        COALESCE(av.board_land, av.certified_land, av.mailed_land)::float /
+        NULLIF(COALESCE(av.board_tot, av.certified_tot, av.mailed_tot)::float, 0) AS land_ratio
+    FROM propertytaxes_combined pt
+    JOIN (
+        SELECT DISTINCT ON (pin)
+            pin,
+            board_land, certified_land, mailed_land,
+            board_tot, certified_tot, mailed_tot
+        FROM assessor_assessed_values2
+        WHERE year <= 2023
+        ORDER BY pin, year DESC
+    ) av ON av.pin = pt.pin14
+    WHERE pt.city = 'CHICAGO'
+      AND pt.deleted_at IS NULL
+      AND pt.property_class LIKE '2%'
+) sub
+WHERE land_ratio IS NOT NULL
+  AND land_ratio BETWEEN 0 AND 1;
+
+Results
+-------
+min,p25,median,p75,max,parcel_count
+0,0.12066666666666667,0.22044444444444444,0.3335294117647059,1,737871
