@@ -245,6 +245,18 @@ The three community areas with the most parcels in the top 500 are North Center 
 
 These are a different profile from the Roseland top 10: old buildings (most over 100 years), LLC-owned, on commercially or residentially zoned land with active nearby demolition activity — the classic North Side teardown pattern.
 
+### What land ratio actually means in context
+
+The single strongest predictor is `land_ratio` — land value as a fraction of total assessed value. To understand what a "high" ratio looks like, we compared the top 500 high-risk parcels against all 737,871 class 2 (residential) properties in Chicago:
+
+| | All class 2 residential | Top 500 high-risk parcels |
+|--|------------------------|--------------------------|
+| 25th percentile | 0.12 | — |
+| **Median** | **0.22** | **0.55** |
+| 75th percentile | 0.33 | — |
+
+The typical Chicago residential parcel has 22 cents of every assessed dollar in land. The high-risk parcels have 55 cents — roughly 2.5x the citywide median. A ratio above ~0.35 puts a property in the top quartile citywide; above 0.50 it's well into outlier territory where demolition economics start making sense. At 0.75+, the building is essentially a liability on the land.
+
 **The model is highly accurate at finding demolitions.** It captures 93.5% of all 1,364 confirmed demolitions within the top 5% of scored parcels, and misses none at a 0.15 probability threshold. The median risk score for a demolished parcel (0.91) is 18x higher than for a non-demolished one (0.05), showing strong separation.
 
 **The single strongest predictor is land value relative to total assessed value.** A high `land_ratio` means the building contributes little to the property's value — the land itself is what's worth money. This is the classic teardown signal: the structure is economically obsolete relative to what could be built in its place. Building age is the second-strongest predictor, followed by how many demolitions have already occurred nearby.
