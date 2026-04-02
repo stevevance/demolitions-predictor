@@ -230,6 +230,7 @@ def extract_features(conn):
         WHERE city = 'CHICAGO'
           AND deleted_at IS NULL
           AND geom_2025 IS NOT NULL
+          AND (property_class LIKE '2%' OR property_class = '1-00')
         """,
         "base parcels",
     )
