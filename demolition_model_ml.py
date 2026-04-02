@@ -283,7 +283,8 @@ def extract_features(conn):
             pin AS pin14,
             char_yrblt,
             char_bldg_sf,
-            char_land_sf
+            char_land_sf,
+            char_ext_wall
         FROM assessor_single_mf_characteristics
         WHERE year <= {SNAPSHOT_YEAR}
         ORDER BY pin, year DESC
@@ -748,7 +749,7 @@ def extract_features(conn):
     # Left-join each feature set on pin14
     for feat_df in [
         df_av,
-        df_chars[["pin14", "building_age", "char_bldg_sf", "char_land_sf"]],
+        df_chars[["pin14", "building_age", "char_bldg_sf", "char_land_sf", "char_ext_wall"]],
         df_demo,
         df_violations[["pin14", "violation_count_5yr", "has_open_violation"]],
         df_reno,
@@ -855,6 +856,14 @@ def train_and_evaluate(df, skip_shap=False, suffix="", tune=False):
         )
         df = pd.concat([df, class_dummies], axis=1)
         features += class_dummies.columns.tolist()
+
+    # Add char_ext_wall as one-hot encoded dummies.
+    if "char_ext_wall" in df.columns:
+        ext_wall_dummies = pd.get_dummies(
+            df["char_ext_wall"].fillna("UNKNOWN"), prefix="ew", dtype=float
+        )
+        df = pd.concat([df, ext_wall_dummies], axis=1)
+        features += ext_wall_dummies.columns.tolist()
 
     y = df["demolished_within_3yr"].values.astype(int)
     X = df[features].copy()
@@ -1115,6 +1124,7 @@ def export_top_500(df, suffix=""):
         "community_area",
         "zone_class",
         "property_class",
+        "char_ext_wall",
         "is_llc_owner",
         "nearby_demo_count_2yr",
         "nearby_new_construction_count",
@@ -1186,6 +1196,7 @@ def export_validation(df, suffix=""):
         "community_area",
         "zone_class",
         "property_class",
+        "char_ext_wall",
     ]
     val_cols = [c for c in val_cols if c in df.columns]
 
