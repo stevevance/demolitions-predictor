@@ -78,7 +78,7 @@ def write_csv(df, path):
 # 2019→2020-2022 training/validation window, but that import has not been done yet.
 SNAPSHOT_YEAR = 2023
 OUTCOME_START = "2024-01-01"
-OUTCOME_END = "2025-12-31"
+OUTCOME_END = "2026-12-31"
 RANDOM_SEED = 42
 
 # Zoning table name (current as of March 2026)
@@ -94,6 +94,8 @@ NUMERIC_FEATURES = [
     "land_ratio",
     "land_val",
     "building_val",
+    "land_val_change_pct",
+    "building_val_change_pct",
     "building_age",
     "underbuilt_ratio",
     "violation_count_5yr",
@@ -246,9 +248,9 @@ def extract_features(conn):
     )
 
     # ------------------------------------------------------------------
-    # 1b. Assessed values for land_ratio (snapshot year)
+    # 1b. Assessed values: snapshot year + 2018 baseline for change features
     # ------------------------------------------------------------------
-    print("\n[2/11] Assessed values (land_ratio)")
+    print("\n[2/11] Assessed values (snapshot year)")
     df_av = run_query(
         conn,
         f"""
@@ -260,18 +262,55 @@ def extract_features(conn):
         WHERE year <= {SNAPSHOT_YEAR}
         ORDER BY pin, year DESC
         """,
-        "assessed values",
-    )
-    # Compute land_ratio: land assessed value / total assessed value
-    df_av["land_ratio"] = np.where(
-        df_av["total_val"].fillna(0) > 0,
-        df_av["land_val"].astype(float) / df_av["total_val"].astype(float),
-        np.nan,
+        "assessed values (snapshot)",
     )
     df_av["land_val"] = pd.to_numeric(df_av["land_val"], errors="coerce")
     df_av["total_val"] = pd.to_numeric(df_av["total_val"], errors="coerce")
     df_av["building_val"] = df_av["total_val"] - df_av["land_val"]
-    df_av = df_av[["pin14", "land_ratio", "land_val", "building_val", "total_val"]]
+    df_av["land_ratio"] = np.where(
+        df_av["total_val"].fillna(0) > 0,
+        df_av["land_val"] / df_av["total_val"],
+        np.nan,
+    )
+
+    # Fetch 2018 baseline values to compute value change features
+    df_av_2018 = run_query(
+        conn,
+        """
+        SELECT DISTINCT ON (pin)
+            pin AS pin14,
+            COALESCE(board_land, certified_land, mailed_land) AS land_val_2018,
+            COALESCE(board_tot, certified_tot, mailed_tot) AS total_val_2018
+        FROM assessor_assessed_values2
+        WHERE year = 2018
+        ORDER BY pin, year DESC
+        """,
+        "assessed values (2018 baseline)",
+    )
+    df_av_2018["land_val_2018"] = pd.to_numeric(df_av_2018["land_val_2018"], errors="coerce")
+    df_av_2018["total_val_2018"] = pd.to_numeric(df_av_2018["total_val_2018"], errors="coerce")
+    df_av_2018["building_val_2018"] = df_av_2018["total_val_2018"] - df_av_2018["land_val_2018"]
+
+    df_av = df_av.merge(df_av_2018, on="pin14", how="left")
+
+    # Percent change in land and building value from 2018 to snapshot year.
+    # Rising land value = increasing redevelopment pressure.
+    # Falling building value = deterioration.
+    df_av["land_val_change_pct"] = np.where(
+        df_av["land_val_2018"].fillna(0) > 0,
+        (df_av["land_val"] - df_av["land_val_2018"]) / df_av["land_val_2018"],
+        np.nan,
+    )
+    df_av["building_val_change_pct"] = np.where(
+        df_av["building_val_2018"].fillna(0) > 0,
+        (df_av["building_val"] - df_av["building_val_2018"]) / df_av["building_val_2018"],
+        np.nan,
+    )
+
+    df_av = df_av[[
+        "pin14", "land_ratio", "land_val", "building_val", "total_val",
+        "land_val_change_pct", "building_val_change_pct",
+    ]]
 
     # ------------------------------------------------------------------
     # 1c. Building characteristics (year built, building sqft, land sqft)
@@ -1117,6 +1156,8 @@ def export_top_500(df, suffix=""):
         "land_ratio",
         "land_val",
         "building_val",
+        "land_val_change_pct",
+        "building_val_change_pct",
         "building_age",
         "underbuilt_ratio",
         "violation_count_5yr",
@@ -1179,6 +1220,8 @@ def export_validation(df, suffix=""):
         "land_ratio",
         "land_val",
         "building_val",
+        "land_val_change_pct",
+        "building_val_change_pct",
         "building_age",
         "underbuilt_ratio",
         "violation_count_5yr",
