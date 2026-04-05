@@ -4,18 +4,18 @@ An XGBoost model that estimates the probability any given Chicago parcel will be
 
 ## What this does
 
-The model trains on property features as of end-2023 and validates against actual demolitions that occurred in 2024–2025. It scores all ~934,000 active Chicago parcels and ranks them by demolition risk.
+The model trains on property features as of end-2023 and validates against actual demolitions that occurred in 2024–2026. It scores 480,600 active Chicago parcels — residential properties and vacant land, excluding condos — and ranks them by demolition risk.
 
 **Model performance:**
 
 | Metric | Value |
 |--------|-------|
-| ROC-AUC | 0.9860 |
-| PR-AUC | 0.2628 |
-| Top-decile lift | 9.76x |
-| Capture rate at top 5% | 93.5% (1,275 of 1,364 actual demolitions) |
+| ROC-AUC | 0.9831 |
+| PR-AUC | 0.1588 |
+| Top-decile lift | 9.77x |
+| Capture rate at top 5% | 91.4% (994 of 1,087 actual demolitions) |
 
-At a 0.15 probability threshold, the model captures 100% of known demolitions (1,364) while flagging ~292K parcels as elevated risk.
+At a 0.15 probability threshold, the model captures 100% of known demolitions (1,087) while flagging ~127K parcels as elevated risk.
 
 ## Features used
 
@@ -23,26 +23,33 @@ Ranked by mean absolute SHAP value (how much each feature moves the prediction):
 
 | Feature | Mean Abs SHAP | Description |
 |---------|--------------|-------------|
-| `land_ratio` | 1.063 | Land value as fraction of total assessed value |
-| `building_age` | 0.765 | Age of structure in years |
-| `nearby_demo_count_2yr` | 0.497 | Demolitions within ~500 ft in past 2 years |
-| `renovation_investment` | 0.371 | Dollar value of recent renovation permits |
-| `years_since_renovation` | 0.343 | Years since last renovation permit (99 = never) |
-| `underbuilt_ratio` | 0.267 | Actual FAR / max allowed FAR under zoning |
-| `is_llc_owner` | 0.219 | Owner name contains "LLC" (LLC, Inc, Corp, Trust) |
-| `violation_count_5yr` | 0.207 | Building code violations in past 5 years |
-| `nearby_new_construction_count` | — | New construction permits within ~500 ft in past 2 years |
-| `lot_size_sf` | — | Lot size in square feet |
-| `sale_year` | — | Year of most recent arm's-length sale |
-| `sale_price` | — | Price of most recent arm's-length sale |
-| `sale_price_to_assessed_ratio` | — | Sale price ÷ total assessed value (note: class 2 residential is assessed at ~10% of market value) |
-| `in_tax_sale` | — | 1 if parcel appeared as forfeited in the 2024 annual tax sale |
-| `has_open_violation` | — | 1 if parcel had an open building violation at snapshot time |
-| `is_vacant` | — | 1 if parcel is on the Chicago vacant building registry |
+| `building_age` | 0.758 | Age of structure in years |
+| `nearby_demo_count_2yr` | 0.520 | Demolitions within ~500 ft in past 2 years |
+| `land_ratio` | 0.349 | Land value as fraction of total assessed value |
+| `underbuilt_ratio` | 0.296 | Actual FAR / max allowed FAR under zoning |
+| `land_val` | 0.281 | Assessed land value (2023 snapshot) |
+| `lot_size_sf` | 0.272 | Lot size in square feet |
+| `years_since_renovation` | 0.236 | Years since last renovation permit (99 = never) |
+| `nearby_new_construction_count` | 0.222 | New construction permits within ~500 ft in past 2 years |
+| `land_val_change_pct` | 0.216 | % change in assessed land value, 2018→2023 |
+| `building_val` | 0.198 | Assessed building value (2023 snapshot) |
+| `in_tax_sale` | 0.184 | 1 if parcel appeared as forfeited in the 2024 annual tax sale |
+| `ew_Masonry` | 0.183 | Exterior wall construction type = Masonry |
+| `violation_count_5yr` | 0.163 | Building code violations in past 5 years |
+| `is_llc_owner` | 0.162 | Owner name contains LLC, Inc, Corp, or Trust |
+| `building_val_change_pct` | 0.158 | % change in assessed building value, 2018→2023 |
+| `sale_price_to_assessed_ratio` | 0.142 | Sale price ÷ total assessed value |
+| `renovation_investment` | 0.100 | Dollar value of recent renovation permits |
+| `sale_year` | 0.100 | Year of most recent arm's-length sale |
+| `sale_price` | 0.091 | Price of most recent arm's-length sale |
+| `is_vacant` | 0.077 | 1 if parcel is on the Chicago vacant building registry |
+| `ew_Frame` | 0.074 | Exterior wall construction type = Frame |
+| `has_open_violation` | 0.053 | 1 if parcel had an open building violation at snapshot time |
 | `property_class` dummies | varies | Top 20 Cook County property classes as one-hot features |
 | Community area dummies | varies | Top 30 community areas as one-hot features |
+| `char_ext_wall` dummies | varies | Exterior wall construction type as one-hot features |
 
-SHAP values are from the initial model run. The features marked — will be ranked after the next run incorporating the new variables. Full SHAP values are in [`output/demolition_model_ml_importance.csv`](output/demolition_model_ml_importance.csv).
+Full SHAP values are in [`output/demolition_model_ml_importance.csv`](output/demolition_model_ml_importance.csv).
 
 ## Output files
 
@@ -68,6 +75,10 @@ Columns:
 | `address` | Street address |
 | `demolition_probability` | Model score from 0–1 (higher = more likely to be demolished) |
 | `land_ratio` | Land value ÷ total assessed value (high = building is worth little relative to land) |
+| `land_val` | Assessed land value (2023) |
+| `building_val` | Assessed building value (2023) |
+| `land_val_change_pct` | % change in assessed land value from 2018 to 2023 |
+| `building_val_change_pct` | % change in assessed building value from 2018 to 2023 |
 | `building_age` | Age of structure in years |
 | `underbuilt_ratio` | Actual FAR ÷ max allowed FAR under current zoning (low = site is underbuilt) |
 | `violation_count_5yr` | Building code violations filed in the past 5 years |
@@ -76,6 +87,7 @@ Columns:
 | `community_area` | Chicago community area name |
 | `zone_class` | Current zoning classification |
 | `property_class` | Cook County property class code |
+| `char_ext_wall` | Exterior wall construction type (Frame, Masonry, Frame + Masonry, Stucco) |
 | `is_llc_owner` | 1 if the owner name contains LLC, Inc, Corp, or Trust |
 | `nearby_demo_count_2yr` | Demolitions within ~500 ft in the past 2 years |
 | `nearby_new_construction_count` | New construction permits within ~500 ft in the past 2 years |
@@ -92,7 +104,7 @@ Columns:
 
 [`output/demolition_model_ml_validation.csv`](output/demolition_model_ml_validation.csv) is a diagnostic file with two groups of parcels, identified by the `sample_type` column:
 
-- **`known_demolition`** — parcels confirmed demolished in 2024–2025, used to check that the model actually scores them highly
+- **`known_demolition`** — parcels confirmed demolished in 2024–2026, used to check that the model actually scores them highly
 - **`false_positive`** — the top-scoring parcels that were *not* demolished, useful for understanding where the model is wrong
 
 The file has the same feature columns as the top 500 list, plus:
@@ -101,43 +113,36 @@ The file has the same feature columns as the top 500 list, plus:
 |--------|-------------|
 | `demolished_within_3yr` | 1.0 = confirmed demolished, 0.0 = not demolished |
 | `has_open_violation` | 1 if the parcel had an open building violation at snapshot time |
-| `sale_year` | Year of most recent arm's-length sale |
-| `sale_price` | Price of most recent arm's-length sale |
-| `sale_price_to_assessed_ratio` | Sale price ÷ total assessed value |
-| `lot_size_sf` | Lot size in square feet |
-| `nearby_new_construction_count` | New construction permits within ~500 ft in the past 2 years |
 | `sample_type` | `known_demolition` or `false_positive` |
-
-This file is most useful for spotting patterns in what the model gets wrong. For example, the current false positives are heavily concentrated in Roseland — parcels with many nearby demolitions and vacant land but no actual demo permit yet.
 
 ### Evaluation metrics
 
-[`output/demolition_model_ml_metrics.txt`](output/demolition_model_ml_metrics.txt) contains the full model evaluation summary. Key figures from the current run (2023 snapshot, 2024–2025 outcomes):
+[`output/demolition_model_ml_metrics.txt`](output/demolition_model_ml_metrics.txt) contains the full model evaluation summary. Key figures from the current run (2023 snapshot, 2024–2026 outcomes):
 
 ```
-Total parcels scored:     934,032
-Total demolitions:          1,364  (base rate: 0.15%)
+Total parcels scored:     480,600
+Total demolitions:          1,087  (base rate: 0.23%)
 
-ROC-AUC:                   0.9860
-PR-AUC:                    0.2628
-Top-decile lift:            9.76x
-Capture rate at top 5%:    93.5%  (1,275 of 1,364 demolished parcels)
+ROC-AUC:                   0.9831
+PR-AUC:                    0.1588
+Top-decile lift:            9.77x
+Capture rate at top 5%:    91.4%  (994 of 1,087 demolished parcels)
 
-Median score — demolished:     0.9082
-Median score — not demolished: 0.0502
+Median score — demolished:     0.9181
+Median score — not demolished: 0.0497
 
 Confusion matrix at p ≥ 0.15:
-  True negatives:   640,892   False positives: 291,776
-  False negatives:        0   True positives:    1,364
+  True negatives:   352,566   False positives: 126,947
+  False negatives:        0   True positives:    1,087
 ```
 
 **What these mean:**
 
-- **ROC-AUC 0.986** — the model correctly ranks a random demolished parcel above a random non-demolished one 98.6% of the time
-- **PR-AUC 0.263** — given how rare demolitions are (0.15% base rate), this is a strong result; random guessing would score 0.0015
-- **Top-decile lift 9.76x** — the top 10% of predictions contain demolitions at nearly 10x the rate you'd expect by chance
-- **Capture rate 93.5%** — 93.5% of all actual demolitions fall in the top 5% of scores
-- **Zero false negatives at p ≥ 0.15** — every confirmed demolition scores above 0.15; the model misses none at this threshold (at the cost of ~292K false positives)
+- **ROC-AUC 0.983** — the model correctly ranks a random demolished parcel above a random non-demolished one 98.3% of the time
+- **PR-AUC 0.159** — given how rare demolitions are (0.23% base rate), this is a strong result; random guessing would score 0.0023
+- **Top-decile lift 9.77x** — the top 10% of predictions contain demolitions at nearly 10x the rate you'd expect by chance
+- **Capture rate 91.4%** — 91.4% of all actual demolitions fall in the top 5% of scores
+- **Zero false negatives at p ≥ 0.15** — every confirmed demolition scores above 0.15; the model misses none at this threshold (at the cost of ~127K false positives)
 
 ## Setup
 
@@ -179,98 +184,114 @@ To preserve existing output files by appending a timestamp to all filenames:
 python3 demolition_model_ml.py --timestamp
 ```
 
+To run hyperparameter tuning with RandomizedSearchCV before training:
+
+```bash
+python3 demolition_model_ml.py --tune
+```
+
 ## Data sources
 
-- **Cook County Assessor** — assessed values and building characteristics (2023 snapshot)
+- **Cook County Assessor** — assessed values and building characteristics (2023 snapshot); 2018 values for change features
 - **Cook County IDOR sales** — arm's-length sale year, price, and price-to-assessed ratio
 - **Cook County annual tax sale** — forfeited properties from 2024 tax sale
 - **Chicago building permits** — renovation history, investment amounts, and nearby new construction
 - **Chicago building violations** — code violations over 5-year window
-- **Chicago demolition permits** — outcome variable (2024–2025 demolitions) and nearby demolition count
+- **Chicago demolition permits** — outcome variable (2024–2026 demolitions) and nearby demolition count
 - **Chicago vacant building registry** — current vacancy status
 - **Chicago zoning** — current zoning class and max FAR
 
 ## What the results show
 
-The model was trained and validated on a 2023 snapshot against actual demolitions in 2024–2025. Here's what the outputs reveal.
+The model was trained and validated on a 2023 snapshot against actual demolitions in 2024–2026. Here's what the outputs reveal.
 
 **Top 10 highest-risk active parcels (2023 snapshot):**
 
-| Address | Community Area | Zoning | Probability |
-|---------|---------------|--------|-------------|
-| 11355 S Michigan Ave | Roseland | C1-2 | 99.8% |
-| 417 W 104th St | Roseland | RS-2 | 99.8% |
-| 123 E 111th St | Roseland | B3-2 | 99.7% |
-| 11359 S Michigan Ave | Roseland | C1-3 | 99.7% |
-| 11443 S Halsted St | Roseland | B3-1 | 99.6% |
-| 11350 S Michigan Ave | Roseland | B3-2 | 99.6% |
-| 36 E 110th Pl | Roseland | B3-2 | 99.6% |
-| 525 W 103rd St | Roseland | B3-1 | 99.6% |
-| 30 E 110th Pl | Roseland | B3-2 | 99.5% |
-| 1420 S Pulaski Rd | North Lawndale | C1-2 | 99.5% |
+| Address | Community Area | Zoning | Probability | Building Age | LLC-owned | Nearby Demos |
+|---------|---------------|--------|-------------|-------------|-----------|-------------|
+| 3048 N Clybourn Ave | North Center | C1-2 | 99.8% | 130 yrs | Yes | 15 |
+| 1221 W Grand Ave | West Town | M2-2 | 99.8% | 133 yrs | Yes | 11 |
+| 2344 W Lyndale St | Logan Square | RT-4 | 99.8% | 135 yrs | Yes | 10 |
+| 2138 W Barry Ave | North Center | RS-3 | 99.7% | 136 yrs | Yes | 28 |
+| 1802 N Cleveland Ave | Lincoln Park | RM-5 | 99.7% | 139 yrs | Yes | 21 |
+| 1951 N Burling St | Lincoln Park | RM-4.5 | 99.7% | 143 yrs | Yes | 34 |
+| 1829 N Talman Ave | Logan Square | RS-3 | 99.7% | 133 yrs | No | 6 |
+| 3318 N Clifton Ave | Lake View | RT-4 | 99.7% | 135 yrs | Yes | 18 |
+| 2032 W Chicago Ave | West Town | B3-2 | 99.7% | 134 yrs | Yes | 20 |
+| 1938 W Eddy St | North Center | RS-3 | 99.7% | 119 yrs | Yes | 24 |
 
-All ten are vacant properties with multiple nearby demolitions. Nine of the ten are in Roseland, which — as noted below — is also where the model's false positives cluster.
+Nine of the ten are LLC-owned. All are frame or masonry construction, 119–143 years old, with active surrounding demolition activity. This is the classic North Side teardown profile — old buildings on commercially or residentially zoned land that has appreciated dramatically, where a developer's value is in the lot, not the structure.
 
-The three community areas with the most parcels in the top 500 are North Center (154), Lincoln Park (71), and Lake View (61). Their top 5 highest-risk parcels:
-
-**North Center**
-
-| Address | Zoning | Probability | Building Age | LLC-owned | Nearby Demos |
-|---------|--------|-------------|-------------|-----------|-------------|
-| 2124 W Roscoe St | B1-2 | 99.3% | 114 yrs | No | 24 |
-| 3039 N Clybourn Ave | RT-4 | 99.2% | 125 yrs | Yes | 16 |
-| 3027 N Clybourn Ave | RT-4 | 99.2% | 125 yrs | Yes | 16 |
-| 3309 N Western Ave | C1-2 | 99.2% | 135 yrs | Yes | 18 |
-| 3048 N Clybourn Ave | C1-2 | 99.1% | 130 yrs | Yes | 15 |
-
-**Lincoln Park**
-
-| Address | Zoning | Probability | Building Age | LLC-owned | Nearby Demos |
-|---------|--------|-------------|-------------|-----------|-------------|
-| 1802 N Cleveland Ave | RM-5 | 99.3% | 139 yrs | Yes | 21 |
-| 2048 N Seminary Ave | RT-4 | 99.2% | 136 yrs | Yes | 19 |
-| 1827 N Clybourn Ave | B1-2 | 99.1% | 135 yrs | Yes | 24 |
-| 2624 N Racine Ave | RT-4 | 99.1% | 135 yrs | Yes | 7 |
-| 2219 N Magnolia Ave | RT-4 | 99.0% | 41 yrs | Yes | 11 |
+The three community areas with the most parcels in the top 500 are Lake View (84), North Center (78), and Lincoln Park (62). Their top 5 highest-risk parcels:
 
 **Lake View**
 
 | Address | Zoning | Probability | Building Age | LLC-owned | Nearby Demos |
 |---------|--------|-------------|-------------|-----------|-------------|
-| 3609 N Ashland Ave | C1-2 | 99.3% | 135 yrs | Yes | 21 |
-| 1434 W Fletcher St | RS-3 | 98.8% | 127 yrs | Yes | 16 |
-| 2921 N Southport Ave | B3-2 | 98.8% | 130 yrs | Yes | 13 |
-| 3639 N Ashland Ave | C1-2 | 98.8% | 132 yrs | No | 17 |
-| 1433 W Oakdale Ave | RT-3.5 | 98.8% | 135 yrs | Yes | 11 |
+| 3318 N Clifton Ave | RT-4 | 99.7% | 135 yrs | Yes | 18 |
+| 872 W Buckingham Pl | RM-5 | 99.6% | 127 yrs | Yes | 10 |
+| 1752 W Newport Ave | RS-3 | 99.4% | 67 yrs | Yes | 21 |
+| 708 W Briar Pl | RM-4.5 | 99.4% | 135 yrs | Yes | 8 |
+| 3755 N Greenview Ave | RT-3.5 | 99.3% | 133 yrs | Yes | 8 |
 
-These are a different profile from the Roseland top 10: old buildings (most over 100 years), LLC-owned, on commercially or residentially zoned land with active nearby demolition activity — the classic North Side teardown pattern.
+**North Center**
 
-### What land ratio actually means in context
+| Address | Zoning | Probability | Building Age | LLC-owned | Nearby Demos |
+|---------|--------|-------------|-------------|-----------|-------------|
+| 3048 N Clybourn Ave | C1-2 | 99.8% | 130 yrs | Yes | 15 |
+| 2138 W Barry Ave | RS-3 | 99.7% | 136 yrs | Yes | 28 |
+| 1938 W Eddy St | RS-3 | 99.7% | 119 yrs | Yes | 24 |
+| 1925 W Cornelia Ave | RS-3 | 99.6% | 121 yrs | Yes | 27 |
+| 3238 N Wolcott Ave | RS-3 | 99.4% | 119 yrs | Yes | 17 |
 
-The single strongest predictor is `land_ratio` — land value as a fraction of total assessed value. To understand what a "high" ratio looks like, we compared the top 500 high-risk parcels against all 737,871 class 2 (residential) properties in Chicago:
+**Lincoln Park**
 
-| | All class 2 residential | Top 500 high-risk parcels |
+| Address | Zoning | Probability | Building Age | LLC-owned | Nearby Demos |
+|---------|--------|-------------|-------------|-----------|-------------|
+| 1802 N Cleveland Ave | RM-5 | 99.7% | 139 yrs | Yes | 21 |
+| 1951 N Burling St | RM-4.5 | 99.7% | 143 yrs | Yes | 34 |
+| 2624 N Racine Ave | RT-4 | 99.6% | 135 yrs | Yes | 7 |
+| 1761 N Wells St | RM-5 | 99.5% | 132 yrs | Yes | 4 |
+| 1827 N Clybourn Ave | B1-2 | 99.4% | 135 yrs | Yes | 24 |
+
+### Building age is the strongest predictor
+
+Building age supplanted land ratio as the single most predictive feature. The median building age among the top 500 parcels is 130 years — most were built in the late 1800s or early 1900s. At that age, deferred maintenance, rising land values, and ownership churn all converge. Exterior wall type also matters: masonry and frame construction appear independently in the SHAP rankings, with masonry being a stronger signal. Older masonry and frame structures are the ones most likely to be torn down.
+
+### Land ratio still matters, but differently
+
+Land ratio (land value ÷ total assessed value) dropped from #1 to #3 in importance after the removal of condos and the addition of new features. It remains a strong signal: the typical top-500 parcel has a land ratio of 0.51 — land accounts for more than half of total assessed value — compared to the citywide residential median of roughly 0.22. That 2.3x gap reflects the core teardown dynamic: the building contributes little to value, and the land itself is what developers are paying for.
+
+| | All residential parcels | Top 500 high-risk parcels |
 |--|------------------------|--------------------------|
-| 25th percentile | 0.12 | 0.47 |
-| **Median** | **0.22** | **0.55** |
-| 75th percentile | 0.33 | 0.60 |
+| 25th percentile | ~0.12 | ~0.47 |
+| **Median** | **~0.22** | **0.51** |
+| 75th percentile | ~0.33 | ~0.60 |
 
-The typical Chicago residential parcel has 22 cents of every assessed dollar in land. The high-risk parcels have 55 cents — roughly 2.5x the citywide median. A ratio above ~0.35 puts a property in the top quartile citywide; above 0.50 it's well into outlier territory where demolition economics start making sense. At 0.75+, the building is essentially a liability on the land.
+### Two distinct demolition profiles in the top 500
 
-**The model is highly accurate at finding demolitions.** It captures 93.5% of all 1,364 confirmed demolitions within the top 5% of scored parcels, and misses none at a 0.15 probability threshold. The median risk score for a demolished parcel (0.91) is 18x higher than for a non-demolished one (0.05), showing strong separation.
+**North Side teardowns** dominate the top of the list: Lake View (84), North Center (78), Lincoln Park (62), West Town (34), Logan Square (24). These are LLC-owned buildings — 50% of the top 500 have corporate ownership — on land that has appreciated beyond what the structure justifies. The common pattern is a 100–140-year-old two-to-six flat or small commercial building in an RS-3 or RT-4 zone, surrounded by active demolition and new construction activity.
 
-**The single strongest predictor is land value relative to total assessed value.** A high `land_ratio` means the building contributes little to the property's value — the land itself is what's worth money. This is the classic teardown signal: the structure is economically obsolete relative to what could be built in its place. Building age is the second-strongest predictor, followed by how many demolitions have already occurred nearby.
+**South Side distressed properties** make up a different cluster lower in the list: West Englewood (42) and Englewood (38) together account for 80 parcels. These aren't teardown-for-new-construction signals. They're properties with building violations, tax sale flags, and vacancy status — distress-driven demolitions rather than development-driven ones. The economic logic is different from the North Side: here, demolition often follows abandonment rather than preceding redevelopment.
 
-**The top 500 highest-risk parcels are concentrated on the North Side.** North Center alone accounts for 154 of the 500 (31%), followed by Lincoln Park (71) and Lake View (61). These are affluent neighborhoods where older single-family and two-flat homes sit on land that has appreciated dramatically — developers pay a premium to tear them down and build new construction. More than half of the top 500 (263) are LLC-owned, and the most common zoning class is RS-3 (single-family residential, 209 parcels), followed by RT-4 (two-flat/townhouse, 95 parcels).
+**Property type breakdown:** Class 2-11 (apartment buildings with 2–6 units) accounts for 273 of the 500 highest-risk parcels (55%). Class 2-02 (single-family homes under 1,000 sq ft) and 2-03 (one-story residences, 1,000–1,800 sq ft) account for 80 each. Of the full top 500: 167 parcels (33%) appeared in the 2024 annual tax sale as forfeited, and 23 are on the vacant building registry.
 
-**The validation sample confirms the model is finding real demolitions.** Of the 30 known demolished parcels in the validation set, 13 are in Lake View and 6 in North Center — consistent with where the model focuses attention. The most common zone class among actual demolitions is RM-5 (multi-family/condo), reflecting teardowns of older apartment buildings and condo associations in high-demand neighborhoods.
+### Validation confirms the model finds real demolitions
 
-**The model's false positives are concentrated in Roseland.** Nine of the 10 highest-scoring parcels that were *not* demolished are in Roseland on the Far South Side. These parcels score highly because the neighborhood has many nearby demolitions, vacant land, and LLC ownership — but unlike the North Side teardowns, they haven't been replaced with new construction. The model reads the same distress signals but the underlying economics (less development demand) mean demolition hasn't followed. This is the model's main known blind spot in the current run.
+The validation sample's known demolitions (30 parcels confirmed demolished in 2024–2026) are concentrated in North Center (7), Lake View (3), Logan Square (3), and Englewood (3) — consistent with where the model focuses attention. The median score for a confirmed demolished parcel in the validation set is 0.99, more than 20x the median for non-demolished parcels (0.05).
 
-**Community area is a meaningful signal beyond just neighborhood effects.** After the core numeric features, the strongest community area dummies are Near North Side, Loop, and Near South Side — areas where even modest structures face redevelopment pressure from commercial and high-density residential projects.
+### The false positives have shifted from Roseland to the North Side
+
+In prior runs, the highest-scoring parcels that were *not* demolished were concentrated in Roseland — parcels with many nearby demolitions and LLC ownership but without the development demand to trigger new construction. That pattern has changed.
+
+The current top 10 false positives are now all on the North Side: North Center (3), West Town (2), Logan Square (2), Lincoln Park (2), Lake View (1). These are LLC-owned buildings, 119–143 years old, with 6–34 nearby demolitions — the same profile as the confirmed demolitions. They may simply not have received a permit yet rather than being genuine model errors. The model reads the same signals correctly; the timing is uncertain.
+
+### Precision improved substantially
+
+After excluding condos and rescoping to the 480,600 relevant parcels, the confusion matrix at p ≥ 0.15 shows 126,947 false positives — down 57% from 291,776 in the prior run, even though the outcome window now extends through 2026. The model continues to miss zero confirmed demolitions at this threshold.
 
 ## Background
 
-This is an upgrade from an earlier logistic regression model (`demolition_model.py`). XGBoost was chosen for improved performance on this rare-event classification task (only 0.15% of parcels are demolished in any given year).
+This is an upgrade from an earlier logistic regression model (`demolition_model.py`). XGBoost was chosen for improved performance on this rare-event classification task. The parcel scope was refined to exclude condominiums (Cook County property class 2-99), which are assessed and demolished differently from residential buildings and vacant land, reducing noise in the training data. The outcome window was extended from 2024–2025 to 2024–2026 to capture demolitions that occur further out from the snapshot date.
 
 The model was built for [Chicago Cityscape](https://www.chicagocityscape.com) to help identify properties at elevated demolition risk.

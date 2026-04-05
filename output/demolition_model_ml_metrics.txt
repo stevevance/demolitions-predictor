@@ -1,31 +1,40 @@
 Chicago Demolition Probability Model (XGBoost) — Evaluation Metrics
 Snapshot year: 2023
-Outcome period: 2024-01-01 to 2025-12-31
-Total parcels: 934,032
-Total demolitions: 1,364
-Base rate: 0.001460
-scale_pos_weight: 683.8
+Outcome period: 2024-01-01 to 2026-12-31
+Total parcels: 480,600
+Total demolitions: 1,087
+Base rate: 0.002262
+scale_pos_weight: 441.1
 
-ROC-AUC: 0.9860
-PR-AUC (Average Precision): 0.2628
-Top-decile lift: 9.76x
-Capture rate at top 5%: 0.9348 (1275/1364)
-Median score (demolished): 0.9082
-Median score (non-demolished): 0.0502
+ROC-AUC: 0.9831
+PR-AUC (Average Precision): 0.1588
+Top-decile lift: 9.77x
+Capture rate at top 5%: 0.9144 (994/1087)
+Median score (demolished): 0.9181
+Median score (non-demolished): 0.0497
 
 Confusion matrix at p >= 0.15:
-  TN=640,892  FP=291,776
-  FN=0  TP=1,364
+  TN=352,566  FP=126,947
+  FN=0  TP=1,087
 
 SHAP feature importances (mean |SHAP|):
-  land_ratio                      1.062900
-  building_age                    0.764557
-  nearby_demo_count_2yr           0.497136
-  renovation_investment           0.370866
-  years_since_renovation          0.342996
-  underbuilt_ratio                0.266745
-  is_llc_owner                    0.218649
-  violation_count_5yr             0.207314
-  recent_sale                     0.087403
-  is_vacant                       0.057827
-  has_open_violation              0.051423
+  building_age                    0.757962
+  nearby_demo_count_2yr           0.520420
+  land_ratio                      0.349087
+  underbuilt_ratio                0.295921
+  land_val                        0.280691
+  lot_size_sf                     0.271693
+  years_since_renovation          0.235680
+  nearby_new_construction_count   0.222336
+  land_val_change_pct             0.216039
+  building_val                    0.197646
+  in_tax_sale                     0.184043
+  violation_count_5yr             0.163024
+  is_llc_owner                    0.161827
+  building_val_change_pct         0.158129
+  sale_price_to_assessed_ratio    0.141605
+  renovation_investment           0.100085
+  sale_year                       0.099795
+  sale_price                      0.090995
+  is_vacant                       0.076807
+  has_open_violation              0.052905

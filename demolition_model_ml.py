@@ -185,7 +185,7 @@ def get_connection(dsn=None):
     return psycopg2.connect(conn_str)
 
 
-def run_query(conn, sql, description="query"):
+def run_query(conn, sql, description="query", params=None):
     """Execute a SQL query and return a pandas DataFrame.
 
     Uses a psycopg2 cursor directly to avoid the SQLAlchemy deprecation
@@ -194,7 +194,7 @@ def run_query(conn, sql, description="query"):
     print(f"  Running: {description} ... ", end="", flush=True)
     t0 = time.time()
     with conn.cursor() as cur:
-        cur.execute(sql)
+        cur.execute(sql, params)
         cols = [desc[0] for desc in cur.description]
         df = pd.DataFrame(cur.fetchall(), columns=cols)
     elapsed = time.time() - t0
@@ -250,6 +250,8 @@ def extract_features(conn):
     # ------------------------------------------------------------------
     # 1b. Assessed values: snapshot year + 2018 baseline for change features
     # ------------------------------------------------------------------
+    base_pins = tuple(df_base["pin14"].tolist())
+
     print("\n[2/11] Assessed values (snapshot year)")
     df_av = run_query(
         conn,
@@ -260,9 +262,11 @@ def extract_features(conn):
             COALESCE(board_tot, certified_tot, mailed_tot) AS total_val
         FROM assessor_assessed_values2
         WHERE year <= {SNAPSHOT_YEAR}
+          AND pin IN %s
         ORDER BY pin, year DESC
         """,
         "assessed values (snapshot)",
+        params=(base_pins,),
     )
     df_av["land_val"] = pd.to_numeric(df_av["land_val"], errors="coerce")
     df_av["total_val"] = pd.to_numeric(df_av["total_val"], errors="coerce")
@@ -283,9 +287,11 @@ def extract_features(conn):
             COALESCE(board_tot, certified_tot, mailed_tot) AS total_val_2018
         FROM assessor_assessed_values2
         WHERE year = 2018
+          AND pin IN %s
         ORDER BY pin, year DESC
         """,
         "assessed values (2018 baseline)",
+        params=(base_pins,),
     )
     df_av_2018["land_val_2018"] = pd.to_numeric(df_av_2018["land_val_2018"], errors="coerce")
     df_av_2018["total_val_2018"] = pd.to_numeric(df_av_2018["total_val_2018"], errors="coerce")
